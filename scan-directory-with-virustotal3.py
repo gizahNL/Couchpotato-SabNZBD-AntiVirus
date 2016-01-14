@@ -10,25 +10,21 @@ Virustotal.com gives feedback based on the md5sum hash of a file.
 Please note: virustotal requests are "limited to at most 4 requests of any nature in any given 1 minute time frame",
 so do NOT use this script to scan your whole disk
 
-
-This python script is based on this behaviour of the HTML page of virustotal:
-
-$ wget https://www.virustotal.com/latest-scan/c33e6d2982957040355b703911c7a797 -o /dev/null -O - | grep -i -e " out of " -e "some of the"
-
-  32 out of 50 antivirus
-  Some of the detections were: Trojan.GenericKD.1477064, Trojan.GenericKD.1477064, RDN/Downloader.a!ox, Riskware ( 0040eff71 ), Riskware ( 0040eff71 ), Trojan.Badur!, WS.Reputation.1, Suspicious_Gen4.FNJQM, TROJ_SPNR.08LM13, Win32:Dropper-gen [Drp], Trojan.Win32.Badur.fyan, Trojan.GenericKD.1477064, Trojan.Win32.Badur.crimgd, Trojan.GenericKD.1477064, Trojan.GenericKD.1477064 (B), UnclassifiedMalware, Trojan.GenericKD.1477064, Trojan.DownLoader9.19493, Trojan.Win32.Generic!BT, TROJ_SPNR.08LM13, RDN/Downloader.a!ox, Mal/Generic-S, Trojan/Badur.cfo, Trojan/Win32.Badur, Trojan.GenericKD.1477064, Trojan.Badur, Trojan.Win32.Badur.ao, MSIL/TrojanDownloader.Agent.NI, Win32.SuspectCrc, Malware_fam.NB, Luhe.Fiha.A, HEUR/Malware.QVM03.Gen
-
+This Python script is modified to use the V2 API of virustotal.com
 '''
 
 import os
 import hashlib
 import sys
+import urllib
 import urllib2
 import shutil
 import json
+import simplejson
 
-apiKey = "xxx"
-srv = "http://192.168.2.101:5050"
+apiKey = "XXXX"
+vitotalkey = "XXX"
+srv = "http://10.0.14.12:5050"
 
 
 # Extensions to be scanned (note the dot at the beginning):
@@ -51,31 +47,19 @@ def virustotal_scan(md5value):
 	found = False
 	names = ''
 
-	baseurl = 'https://www.virustotal.com/latest-scan/'
-	url = baseurl + md5value
+	url = "https://www.virustotal.com/vtapi/v2/file/report"
+	parameters = {"resource": md5value,
+		      "apikey": vitotalkey}
+	data = urllib.urlencode(parameters)
+	req = urllib2.Request(url, data)
 
-	opener = urllib2.build_opener()
-	opener.addheaders = [('User-agent', 'SABnzbd script version 0.1')]
-
-	response = opener.open(url)
+	response = urllib2.urlopen(req)
 	html = response.read()
-
-	for thisline in html.split('\n'):
-		# We're interested in these lines in the html:
-		# 	38 out of 50 antivirus
-		# 	Some of the detections
-		# So let's scan for them:
-		if thisline.find(" out of ") >= 0:
-			#print thisline.split()[0]
-			try:
-				number = int(thisline.split()[0])
-				if number >=5:
-					found = True
-			except:
-				number = 5
-		if thisline.find("Some of the detections") >= 0:
-			names = thisline[:128]
-
+	response_dict = simplejson.loads(html)
+	number = response_dict.get("positives")
+	
+	if number >=6:
+		found = True
 	return (found,names,number)
 
 
@@ -100,6 +84,11 @@ if not os.path.exists(dirname):
 scannedfiles = 0 # no more than 4 per minute ...
 virusfound = False
 
+url = srv+"/api/"+apiKey+"/media.list?release_status=snatched&status=active"
+u = urllib2.urlopen(url)
+obj = json.load(u)
+u.close()
+
 for root, dirs, files in os.walk(dirname):
     for file in files:
 	extension = os.path.splitext(file)[1].lower()
@@ -122,20 +111,19 @@ for root, dirs, files in os.walk(dirname):
 			del nzb[-1]
 			nzb='.cp('.join(nzb)
 			print "\n\n"
-            #search snatched movies
 			url = srv+"/api/"+apiKey+"/media.list?release_status=snatched&status=active"
 			u = urllib2.urlopen(url)
 			obj = json.load(u)
 			u.close()
-                for x in range(0, len(obj['movies'])):
-                    if imdb == obj['movies'][x]['library']['info']['imdb']:
-                        url = srv+"/api/"+apiKey+"/movie.searcher.try_next?id="+str(obj['movies'][x]['id'])
-                        u = urllib2.urlopen(url)
-                        u.close()
-                        print "\n\n I gave CP the command to ignore this NZB and search again"
-		else:
-			dummy = 0
-			#print "No Virus found"
+                	for x in range(0, len(obj['movies'])):
+                    		if imdb == obj['movies'][x]['library']['info']['imdb']:
+                        		url = srv+"/api/"+apiKey+"/movie.searcher.try_next?id="+str(obj['movies'][x]['id'])
+                        		u = urllib2.urlopen(url)
+                        		u.close()
+                        		print "\n\n I gave CP the command to ignore this NZB and search again"
+				else:
+					dummy = 0
+					#print "No Virus found"
 		scannedfiles += 1
 		if scannedfiles > 4:
 			print "Warning: you have now scanned more than 4 files ..."
@@ -145,6 +133,3 @@ if virusfound:
 	sys.exit(number)
 else:
 	sys.exit(0)
-
-
-
