@@ -104,26 +104,9 @@ for root, dirs, files in os.walk(dirname):
 			os.rename(fullfilename, newfilename)
 			shutil.rmtree(sys.argv[1])
 			print "\n\nI deleted ",sys.argv[1]," for you!\n\n"
-			nzb = sys.argv[2]
-			nzb = nzb.split(".cp(")
-			imdb = nzb[-1]
-			imdb = imdb.replace(").nzb","")
-			del nzb[-1]
-			nzb='.cp('.join(nzb)
-			print "\n\n"
-			url = srv+"/api/"+apiKey+"/media.list?release_status=snatched&status=active"
-			u = urllib2.urlopen(url)
-			obj = json.load(u)
-			u.close()
-                	for x in range(0, len(obj['movies'])):
-                    		if imdb == obj['movies'][x]['library']['info']['imdb']:
-                        		url = srv+"/api/"+apiKey+"/movie.searcher.try_next?id="+str(obj['movies'][x]['id'])
-                        		u = urllib2.urlopen(url)
-                        		u.close()
-                        		print "\n\n I gave CP the command to ignore this NZB and search again"
-				else:
-					dummy = 0
-					#print "No Virus found"
+		else:
+			dummy = 0
+			#print "No Virus found"
 		scannedfiles += 1
 		if scannedfiles > 4:
 			print "Warning: you have now scanned more than 4 files ..."
