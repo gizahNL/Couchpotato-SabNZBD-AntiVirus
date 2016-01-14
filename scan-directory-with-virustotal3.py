@@ -121,9 +121,9 @@ for root, dirs, files in os.walk(dirname):
                         		u = urllib2.urlopen(url)
                         		u.close()
                         		print "\n\n I gave CP the command to ignore this NZB and search again"
-				else:
-					dummy = 0
-					#print "No Virus found"
+		else:
+			dummy = 0
+			print "No Virus found"
 		scannedfiles += 1
 		if scannedfiles > 4:
 			print "Warning: you have now scanned more than 4 files ..."
